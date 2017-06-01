@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
+	xmlns:mock="http://www.mulesoft.org/schema/mule/mock" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw"
+	xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:spring="http://www.springframework.org/schema/beans" xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+        xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+        xmlns:api-platform-gw="http://www.mulesoft.org/schema/mule/api-platform-gw"
+        xmlns:apikit="http://www.mulesoft.org/schema/mule/apikit"
+        xmlns:proxy="http://www.mulesoft.org/schema/mule/proxy"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:context="http://www.springframework.org/schema/context"
+        xsi:schemaLocation="http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/apikit http://www.mulesoft.org/schema/mule/apikit/current/mule-apikit.xsd
+http://www.mulesoft.org/schema/mule/api-platform-gw http://www.mulesoft.org/schema/mule/api-platform-gw/current/mule-api-platform-gw.xsd
+http://www.mulesoft.org/schema/mule/proxy http://www.mulesoft.org/schema/mule/proxy/current/mule-proxy.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/mock http://www.mulesoft.org/schema/mule/mock/current/mule-mock.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.1.xsd">
+
+    <configuration defaultProcessingStrategy="non-blocking" doc:name="Configuration"/>
+
+    <context:property-placeholder location="config.properties" ignore-resource-not-found="true" ignore-unresolvable="true" system-properties-mode="OVERRIDE"/>
+
+    <http:request-config
+      name="http-request-config"
+      host="${implementation.host}"
+      port="${implementation.port}"
+      basePath="${implementation.path}" doc:name="HTTP Request Configuration"/>
+
+    <proxy:raml-proxy-config name="proxy-config" raml="${raml.location}" disableValidations="true"/>
+
+    <api-platform-gw:api apiName="${api.name}" version="${api.version}" apikitRef="proxy-config" flowRef="proxy" create="true" doc:name="API Autodiscovery">
+    </api-platform-gw:api>
+
+    <flow name="health-check">
+        <http:listener config-ref="http-lc-0.0.0.0-8081" path="/" doc:name="HTTP"/>
+        <set-property propertyName="http.status" value="200" doc:name="Set 200 Status Code"/>
+        <dw:transform-message doc:name="Create Health Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json encoding="UTF-8", skipNullOn="everywhere"
+---
+// This response confirms to the JSONAPI specification although nothing
+// specific for a heart-beat message so based on the error format fields
+// http://jsonapi.org/format
+{
+	status: {
+		code: "OK",
+		status: outboundProperties['http.status'],
+		title: "RAML Proxy up and running",
+		detail: "RAML Proxy: '" ++ p('PROXY_API_NAME') ++ "' Version:" ++ p('PROXY_API_VERSION'),
+		source:
+		{
+			pointer: inboundProperties['http.request.uri'],
+			parameter: inboundProperties['http.query.params']
+		},
+		meta:
+		{
+			dateTime: now as :string { format: "yyyy-MM-dd'T'HH:mm:ssZ" }
+		}
+	}
+}]]></dw:set-payload>
+        </dw:transform-message>
+    </flow>
+
+    <flow name="proxy" >
+        <http:listener config-ref="http-lc-0.0.0.0-8081" path="${proxy.path}" parseRequest="false" doc:name="HTTP"/>
+        <set-variable variableName="transactionId" value="#[(message.inboundProperties['${correlation.id.name}'] != null) ? message.inboundProperties['${correlation.id.name}'] : java.util.UUID.randomUUID().toString().replace('-', '')]" doc:name="Set Transaction ID" doc:description="There may be a policy applied to this API which prevents anything without a Correlation ID from getting through (filtrered) : If this is the case, this step won't even be reached as the message will filtered.
+
+However, if there is no such policy in place  and there is NO Correlation-ID in the header, then this step will allocate a new one for the rest of this message processing and pass it to the downstream API."/>
+        
+        
+        <logger message="{ &quot;transaction&quot;: &quot;#[flowVars.transactionId]&quot;, &quot;request&quot;: &quot;#[message.inboundProperties['http.method']] #[message.inboundProperties['http.request.uri']]&quot; }" level="INFO" doc:name="Logger" category="Audit" />
+        <response>
+            <choice doc:name="Choice">
+                <when expression="#[flowVars.errorRaised != null &amp;&amp; flowVars.errorRaised == true]">
+                    <set-payload value="#[payload]" doc:name="Pass Through"/>
+                </when>
+                <otherwise>
+                    <logger message="{ &quot;transaction&quot;: &quot;#[flowVars.transactionId]&quot;, &quot;response&quot;: &quot;#[message.outboundProperties['http.status']]&quot; }" level="INFO" category="Audit" doc:name="Logger"/>
+                </otherwise>
+            </choice>
+        </response>
+        
+        <custom-processor class="com.mulesoft.gateway.extension.ProxyRequestHeadersProcessor" doc:name="Custom_Processor"/>
+        <proxy:raml config-ref="proxy-config"/>
+        <http:request config-ref="http-request-config" method="#[message.inboundProperties['http.method']]" path="#[message.inboundProperties['http.request.path'].substring(message.inboundProperties['http.listener.path'].length()-2)]" parseResponse="false" doc:name="HTTP">
+            <http:request-builder>
+                <http:query-params expression="#[message.inboundProperties['http.query.params']]"/>
+            </http:request-builder>
+            <http:success-status-code-validator values="0..599" />
+        </http:request>
+        <custom-processor class="com.mulesoft.gateway.extension.ProxyResponseHeadersProcessor" doc:name="Custom Processor"/>
+        <exception-strategy ref="global-exception-strategy" doc:name="Reference Exception Strategy" />
+    </flow>
+
+    <flow name="console" >
+        <http:listener config-ref="http-lc-0.0.0.0-8081" path="${console.path}" parseRequest="false" doc:name="HTTP"/>
+        <apikit:console config-ref="proxy-config" doc:name="APIkit Console"/>
+    </flow>
+</mule>

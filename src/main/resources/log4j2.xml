@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Configuration>
+	<Properties>
+		<!--  These are the default values if they are not passed in as Environment Variables -->
+    	<Property name="LOG_LEVEL">INFO</Property>
+    	<Property name="LOG_PATTERN">[%d] [${hostName}] [%thread] [%logger] [%-5p] message=%m%n</Property>
+	</Properties>
+  
+    <Appenders>
+        <RollingFile name="file" fileName="${sys:mule.home}${sys:file.separator}logs${sys:file.separator}raml-proxy.log" 
+                 filePattern="${sys:mule.home}${sys:file.separator}logs${sys:file.separator}raml-proxy-%i.log">
+            <PatternLayout pattern="${sys:LOG_PATTERN}" />
+            <SizeBasedTriggeringPolicy size="10 MB" />
+            <DefaultRolloverStrategy max="10"/>
+        </RollingFile>
+    </Appenders>
+    <Loggers>
+        <!-- CXF is used heavily by Mule for web services -->
+        <AsyncLogger name="org.apache.cxf" level="WARN"/>
+
+        <!-- Apache Commons tend to make a lot of noise which can clutter the log-->
+        <AsyncLogger name="org.apache" level="WARN"/>
+
+        <!-- Reduce startup noise -->
+        <AsyncLogger name="org.springframework.beans.factory" level="WARN"/>
+
+        <!-- Mule classes -->
+        <AsyncLogger name="org.mule" level="INFO"/>
+        <AsyncLogger name="com.mulesoft" level="INFO"/>
+
+        <!-- Reduce DM verbosity -->
+        <AsyncLogger name="org.jetel" level="WARN"/>
+        <AsyncLogger name="Tracking" level="WARN"/>
+        
+        <AsyncRoot level="${sys:LOG_LEVEL}">
+            <AppenderRef ref="file" />
+        </AsyncRoot>
+    </Loggers>
+</Configuration>
