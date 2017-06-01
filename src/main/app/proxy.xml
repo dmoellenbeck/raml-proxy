@@ -102,4 +102,51 @@ However, if there is no such policy in place  and there is NO Correlation-ID in 
         <http:listener config-ref="http-lc-0.0.0.0-8081" path="${console.path}" parseRequest="false" doc:name="HTTP"/>
         <apikit:console config-ref="proxy-config" doc:name="APIkit Console"/>
     </flow>
+    
+    
+    
+     <flow name="ListPoliciesFlow">
+     	<http:listener config-ref="http-lc-0.0.0.0-8081" path="${policies.path}" doc:name="HTTP"/>
+     	<set-variable variableName="policies" value="#[new java.util.LinkedHashMap()]" doc:name="Set Policies Var"/>
+        <set-property propertyName="http.status" value="200" doc:name="Set 200 Status Code"/>
+     	<logger message="{ &quot;transaction&quot;: &quot;#[flowVars.transactionId]&quot;, &quot;request&quot;: &quot;#[message.inboundProperties['http.method']] #[message.inboundProperties['http.request.uri']]&quot; - Requesting Policy from ${policies.dir} }" level="INFO" doc:name="Logger"/>
+     	<foreach collection="#[org.mule.util.FileUtils.listFiles(new java.io.File('${policies.dir}'), {&quot;xml&quot;},false)]" doc:name="For Each">
+         	<logger message="Need to Process: #[payload]" level="INFO" doc:name="Logger"/>
+         	<flow-ref name="ProcessPolicySubFlow" doc:name="ProcessPolicySubFlow"/>
+     	</foreach>
+        <set-payload value="#[flowVars.policies]" doc:name="Set Payload"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json encoding="UTF-8", skipNullOn="everywhere"
+---
+// This response confirms to the JSONAPI specification although nothing
+// specific for a heart-beat message so based on the error format fields
+// http://jsonapi.org/format
+{
+	status: {
+		code: "OK",
+		status: outboundProperties['http.status'],
+		title: "Policies",
+		detail: "RAML Proxy: '" ++ p('PROXY_API_NAME') ++ "' Version:" ++ p('PROXY_API_VERSION'),
+		source:
+		{
+			pointer: inboundProperties['http.request.uri']
+		},
+		meta:
+		{
+			dateTime: now as :string { format: "yyyy-MM-dd'T'HH:mm:ssZ" },
+			policies : payload
+		}
+	}
+}]]></dw:set-payload>
+        </dw:transform-message>
+ 	 </flow>
+ 	 
+ <sub-flow name="ProcessPolicySubFlow">
+     <logger message="Processing : #[payload]" level="INFO" doc:name="Logger"/>
+        <expression-component doc:name="StoreToArray"><![CDATA[#[flowVars['policies'].put( payload.getName(), org.mule.util.FileUtils.readFileToString(new java.io.File(payload)) ) ]]]></expression-component>
+     <logger message="Processed : #[payload]" level="INFO" doc:name="Logger"/>
+ </sub-flow>
+    
+    
 </mule>
