@@ -110,10 +110,10 @@ However, if there is no such policy in place  and there is NO Correlation-ID in 
      	<set-variable variableName="policies" value="#[new java.util.LinkedHashMap()]" doc:name="Set Policies Var"/>
         <set-property propertyName="http.status" value="200" doc:name="Set 200 Status Code"/>
      	<logger message="{ &quot;transaction&quot;: &quot;#[flowVars.transactionId]&quot;, &quot;request&quot;: &quot;#[message.inboundProperties['http.method']] #[message.inboundProperties['http.request.uri']]&quot; - Requesting Policy from ${policies.dir} }" level="INFO" doc:name="Logger"/>
-     	<foreach collection="#[org.mule.util.FileUtils.listFiles(new java.io.File('${policies.dir}'), {&quot;xml&quot;},false)]" doc:name="For Each">
-         	<logger message="Need to Process: #[payload]" level="INFO" doc:name="Logger"/>
-         	<flow-ref name="ProcessPolicySubFlow" doc:name="ProcessPolicySubFlow"/>
-     	</foreach>
+        <foreach collection="#[org.mule.util.FileUtils.listFiles(new java.io.File('${policies.dir}'), {&quot;xml&quot;},false)]" doc:name="For Each">
+            <logger message="Need to Process: #[payload]" level="INFO" doc:name="Logger"/>
+            <flow-ref name="ProcessPolicySubFlow" doc:name="ProcessPolicySubFlow"/>
+        </foreach>
         <set-payload value="#[flowVars.policies]" doc:name="Set Payload"/>
         <dw:transform-message doc:name="Transform Message">
             <dw:set-payload><![CDATA[%dw 1.0
@@ -127,7 +127,7 @@ However, if there is no such policy in place  and there is NO Correlation-ID in 
 		code: "OK",
 		status: outboundProperties['http.status'],
 		title: "Policies",
-		detail: "RAML Proxy: '" ++ p('PROXY_API_NAME') ++ "' Version:" ++ p('PROXY_API_VERSION'),
+		detail: "RAML Proxy:'" ++ p('PROXY_API_NAME') ++ "' Version:" ++ p('PROXY_API_VERSION') ++ " Policies:" ++ sizeOf flowVars['policies'],
 		source:
 		{
 			pointer: inboundProperties['http.request.uri']
@@ -140,6 +140,7 @@ However, if there is no such policy in place  and there is NO Correlation-ID in 
 	}
 }]]></dw:set-payload>
         </dw:transform-message>
+        <exception-strategy ref="global-exception-strategy" doc:name="Reference Exception Strategy"/>
  	 </flow>
  	 
  <sub-flow name="ProcessPolicySubFlow">
