@@ -129,7 +129,6 @@ http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee
         <logger message="{ &quot;transaction&quot;: &quot;#[flowVars.transactionId]&quot;, &quot;response&quot;: &quot;#[message.outboundProperties['http.status']]&quot;, &quot;errorCode&quot;: &quot;#[payload]&quot;, &quot;errorMessage&quot;: &quot;#[flowVars.errorMessage != null ? flowVars.errorMessage : '']&quot;, &quot;errorDescription&quot;: &quot;#[flowVars.errorDescription != null ? flowVars.errorDescription : '']&quot; }" level="ERROR" doc:name="Logger" category="Audit"/>
         <set-variable variableName="errorRaised" value="#[true]" doc:name="Set Error Raised"/>
         <dw:transform-message doc:name="Create Error Message" metadata:id="6c3b1e41-d4a1-4916-9dba-7117ac428562">
-            <dw:input-payload doc:sample="sample_data/string.dwl" mimeType="application/java"/>
             <dw:set-payload><![CDATA[%dw 1.0
 %output application/json encoding="UTF-8", skipNullOn="everywhere"
 ---
