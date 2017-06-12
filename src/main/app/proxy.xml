@@ -31,6 +31,12 @@ http://www.springframework.org/schema/context http://www.springframework.org/sch
       host="${implementation.host}"
       port="${implementation.port}"
       basePath="${implementation.path}" doc:name="HTTP Request Configuration"/>
+      
+    <http:request-config
+      name="http-apilog-request-config"
+      host="${implementation.host}"
+      port="${implementation.port}"
+      basePath="${implementation.log.path}" doc:name="HTTP API-Log Request Configuration"/>
 
     <proxy:raml-proxy-config name="proxy-config" raml="${raml.location}" disableValidations="true"/>
 
@@ -94,7 +100,7 @@ However, if there is no such policy in place  and there is NO Correlation-ID in 
             </http:request-builder>
             <http:success-status-code-validator values="0..599" />
         </http:request>
-        <custom-processor class="com.mulesoft.gateway.extension.ProxyResponseHeadersProcessor" doc:name="Custom Processor"/>
+        <custom-processor class="com.mulesoft.gateway.extension.ProxyResponseHeadersProcessor" doc:name="Custom_Processor"/>
         <exception-strategy ref="global-exception-strategy" doc:name="Reference Exception Strategy" />
     </flow>
 
@@ -107,7 +113,7 @@ However, if there is no such policy in place  and there is NO Correlation-ID in 
     
      <flow name="ListPoliciesFlow" processingStrategy="synchronous">
      	<http:listener config-ref="http-lc-0.0.0.0-8081" path="${policies.path}" doc:name="HTTP"/>
-        <logger message="{ &quot;transaction&quot;: &quot;#[flowVars.transactionId]&quot;, &quot;request&quot;: &quot;#[message.inboundProperties['http.method']] #[message.inboundProperties['http.request.uri']]&quot; - Requesting Policy from ${policies.dir} }" level="INFO" doc:name="Logger"/>
+        <logger message="{ &quot;transaction&quot;: &quot;#[flowVars.transactionId]&quot;, &quot;request&quot;: &quot;#[message.inboundProperties['http.method']] #[message.inboundProperties['http.request.uri']]&quot;} - Requesting Policy from ${policies.dir}" level="INFO" doc:name="Logger"/>
      	<set-variable variableName="policies" value="#[new java.util.LinkedHashMap()]" doc:name="Set Policies Var"/>
         <set-property propertyName="http.status" value="200" doc:name="Set 200 Status Code"/>
         <foreach collection="#[org.mule.util.FileUtils.listFiles(new java.io.File('${policies.dir}'), {&quot;xml&quot;},false)]" doc:name="For Each">
@@ -142,6 +148,17 @@ However, if there is no such policy in place  and there is NO Correlation-ID in 
         </dw:transform-message>
         <exception-strategy ref="global-exception-strategy" doc:name="Reference Exception Strategy"/>
  	 </flow>
+    <flow name="Api-Log-Passthrough-Flow">
+        <http:listener config-ref="http-lc-0.0.0.0-8081" path="${apilogs.path}" doc:name="HTTP Logs" allowedMethods="GET"/>
+        <logger message="{ &quot;transaction&quot;: &quot;#[flowVars.transactionId]&quot;, &quot;request&quot;: &quot;#[message.inboundProperties['http.method']] #[message.inboundProperties['http.request.uri']]&quot;} - API Log request - Pass-Through to API Impl : ${implementation.host}:${implementation.port}${implementation.log.path}" level="INFO" doc:name="Logger"/>
+        <http:request config-ref="http-apilog-request-config" method="#[message.inboundProperties['http.method']]" path="/" parseResponse="false" doc:name="HTTP API-Logs">
+            <http:request-builder>
+                <http:query-params expression="#[message.inboundProperties['http.query.params']]"/>
+            </http:request-builder>
+            <http:success-status-code-validator values="0..599" />
+        </http:request>
+        <exception-strategy ref="global-exception-strategy" doc:name="Reference Exception Strategy"/>
+    </flow>
     
     
 </mule>
