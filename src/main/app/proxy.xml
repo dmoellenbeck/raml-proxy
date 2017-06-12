@@ -36,7 +36,7 @@ http://www.springframework.org/schema/context http://www.springframework.org/sch
       name="http-apilog-request-config"
       host="${implementation.host}"
       port="${implementation.port}"
-      basePath="${implementation.log.path}" doc:name="HTTP API-Log Request Configuration"/>
+      basePath="${implementation.logs.path}" doc:name="HTTP API-Log Request Configuration"/>
 
     <proxy:raml-proxy-config name="proxy-config" raml="${raml.location}" disableValidations="true"/>
 
@@ -149,8 +149,8 @@ However, if there is no such policy in place  and there is NO Correlation-ID in 
         <exception-strategy ref="global-exception-strategy" doc:name="Reference Exception Strategy"/>
  	 </flow>
     <flow name="Api-Log-Passthrough-Flow">
-        <http:listener config-ref="http-lc-0.0.0.0-8081" path="${apilogs.path}" doc:name="HTTP Logs" allowedMethods="GET"/>
-        <logger message="{ &quot;transaction&quot;: &quot;#[flowVars.transactionId]&quot;, &quot;request&quot;: &quot;#[message.inboundProperties['http.method']] #[message.inboundProperties['http.request.uri']]&quot;} - API Log request - Pass-Through to API Impl : ${implementation.host}:${implementation.port}${implementation.log.path}" level="INFO" doc:name="Logger"/>
+        <http:listener config-ref="http-lc-0.0.0.0-8081" path="${proxy.logs.path}" doc:name="HTTP Logs" allowedMethods="GET"/>
+        <logger message="{ &quot;transaction&quot;: &quot;#[flowVars.transactionId]&quot;, &quot;request&quot;: &quot;#[message.inboundProperties['http.method']] #[message.inboundProperties['http.request.uri']]&quot;} - API Log request - Pass-Through to API Impl : ${implementation.host}:${implementation.port}${implementation.logs.path}" level="INFO" doc:name="Logger"/>
         <http:request config-ref="http-apilog-request-config" method="#[message.inboundProperties['http.method']]" path="/" parseResponse="false" doc:name="HTTP API-Logs">
             <http:request-builder>
                 <http:query-params expression="#[message.inboundProperties['http.query.params']]"/>
