@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+    <sub-flow name="transform-to-jsonapi-response_flow">
+        <set-variable variableName="runtimeVersion" value="#[org.mule.config.MuleManifest.getProductVersion()]" doc:name="Runtime Version"/>
+        <dw:transform-message doc:name="Create Health Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json encoding="UTF-8", skipNullOn="everywhere"
+---
+// This response confirms to the JSONAPI specification although nothing
+// specific for a heart-beat message so based on the error format fields
+// http://jsonapi.org/format
+// The pay-load is expected to contain the status code e.g. 'OK' or 'BAD_REQUEST' etc.
+{
+	status: {
+	    id: flowVars.transactionId,
+		status: outboundProperties['http.status'],
+		code: payload,
+		title: "RAML Proxy " ++ flowVars."response.title",
+		detail: "RAML Proxy: '" ++ p('PROXY_API_NAME') ++ "' Version:" ++ p('PROXY_API_VERSION') ++ " " ++ flowVars."response.details",
+		source:
+		{
+			pointer: inboundProperties['http.request.uri'],
+			parameter: inboundProperties['http.query.params']
+		},
+		meta:
+		{
+			dateTime: now as :string { format: "yyyy-MM-dd'T'HH:mm:ssZ" },
+			runtimeVersion: flowVars.runtimeVersion,
+			policies : flowVars.policies
+		}
+	}
+}]]></dw:set-payload>
+        </dw:transform-message>   
+    
+    </sub-flow>
+</mule>

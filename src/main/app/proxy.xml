@@ -46,31 +46,10 @@ http://www.springframework.org/schema/context http://www.springframework.org/sch
     <flow name="health-check">
         <http:listener config-ref="http-lc-0.0.0.0-8081" path="/" doc:name="HTTP"/>
         <set-property propertyName="http.status" value="200" doc:name="Set 200 Status Code"/>
-        <dw:transform-message doc:name="Create Health Message">
-            <dw:set-payload><![CDATA[%dw 1.0
-%output application/json encoding="UTF-8", skipNullOn="everywhere"
----
-// This response confirms to the JSONAPI specification although nothing
-// specific for a heart-beat message so based on the error format fields
-// http://jsonapi.org/format
-{
-	status: {
-		code: "OK",
-		status: outboundProperties['http.status'],
-		title: "RAML Proxy up and running",
-		detail: "RAML Proxy: '" ++ p('PROXY_API_NAME') ++ "' Version:" ++ p('PROXY_API_VERSION'),
-		source:
-		{
-			pointer: inboundProperties['http.request.uri'],
-			parameter: inboundProperties['http.query.params']
-		},
-		meta:
-		{
-			dateTime: now as :string { format: "yyyy-MM-dd'T'HH:mm:ssZ" }
-		}
-	}
-}]]></dw:set-payload>
-        </dw:transform-message>
+        <set-variable variableName="response.title" value="Heartbeat" doc:name="Set Response Title"/>
+        <set-variable variableName="response.details" value="" doc:name="Set Response Details"/>
+        <set-payload value="OK" doc:name="Set Status Code" mimeType="application/java"/>
+        <flow-ref name="transform-to-jsonapi-response_flow" doc:name="transform-to-jsonapi-response_flow"/>
     </flow>
 
     <flow name="proxy" >
@@ -120,32 +99,10 @@ However, if there is no such policy in place  and there is NO Correlation-ID in 
             <logger message="Found Policy : #[payload]" level="INFO" doc:name="Logger"/>
             <expression-component doc:name="StoreToArray"><![CDATA[#[flowVars['policies'].put( payload.getName(), org.mule.util.FileUtils.readFileToString(new java.io.File(payload)) ) ]]]></expression-component>
         </foreach>
-        <set-payload value="#[flowVars.policies]" doc:name="Set Payload"/>
-        <dw:transform-message doc:name="Transform Message">
-            <dw:set-payload><![CDATA[%dw 1.0
-%output application/json encoding="UTF-8", skipNullOn="everywhere"
----
-// This response confirms to the JSONAPI specification although nothing
-// specific for a heart-beat message so based on the error format fields
-// http://jsonapi.org/format
-{
-	status: {
-		code: "OK",
-		status: outboundProperties['http.status'],
-		title: "Policies",
-		detail: "RAML Proxy:'" ++ p('PROXY_API_NAME') ++ "' Version:" ++ p('PROXY_API_VERSION') ++ " Policies:" ++ sizeOf flowVars['policies'],
-		source:
-		{
-			pointer: inboundProperties['http.request.uri']
-		},
-		meta:
-		{
-			dateTime: now as :string { format: "yyyy-MM-dd'T'HH:mm:ssZ" },
-			policies : payload
-		}
-	}
-}]]></dw:set-payload>
-        </dw:transform-message>
+        <set-variable variableName="response.title" value="Policies" doc:name="Set Response Title"/>
+        <set-variable variableName="response.details" value="#['Policies:' +  sizeOf(flowVars['policies'])]" doc:name="Set Response Details"/>
+        <set-payload value="OK" doc:name="Set Status Code" mimeType="application/java"/>
+        <flow-ref name="transform-to-jsonapi-response_flow" doc:name="transform-to-jsonapi-response_flow"/>
         <exception-strategy ref="global-exception-strategy" doc:name="Reference Exception Strategy"/>
  	 </flow>
     <flow name="Api-Log-Passthrough-Flow">
