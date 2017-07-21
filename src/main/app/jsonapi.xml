@@ -7,9 +7,33 @@
 	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
 http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
 http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
-    <sub-flow name="transform-to-jsonapi-response_flow">
+    <sub-flow name="transform-to-jsonapi-data_flow">
         <set-variable variableName="runtimeVersion" value="#[org.mule.config.MuleManifest.getProductVersion()]" doc:name="Runtime Version"/>
-        <dw:transform-message doc:name="Create Health Message">
+        <dw:transform-message doc:name="Create Data Response">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json encoding="UTF-8", skipNullOn="everywhere"
+---
+// This response confirms to the JSONAPI specification 
+// http://jsonapi.org/format
+{
+	data: [{
+		type: flowVars['response.title'],
+	 	id: flowVars.transactionId,
+		attributes:
+		{
+			dateTime: now as :string { format: "yyyy-MM-dd'T'HH:mm:ssZ" },
+			runtimeVersion: flowVars.runtimeVersion,
+			policies : flowVars.policies
+		}
+	}]
+}]]></dw:set-payload>
+
+        </dw:transform-message>   
+    
+    </sub-flow>
+    <sub-flow name="transform-to-jsonapi-error_flow">
+        <set-variable variableName="runtimeVersion" value="#[org.mule.config.MuleManifest.getProductVersion()]" doc:name="Runtime Version"/>
+        <dw:transform-message doc:name="Create Error Response">
             <dw:set-payload><![CDATA[%dw 1.0
 %output application/json encoding="UTF-8", skipNullOn="everywhere"
 ---
@@ -18,12 +42,12 @@ http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/cor
 // http://jsonapi.org/format
 // The pay-load is expected to contain the status code e.g. 'OK' or 'BAD_REQUEST' etc.
 {
-	status: {
-	    id: flowVars.transactionId,
+	errors: [{
+	 id: flowVars.transactionId,
 		status: outboundProperties['http.status'],
 		code: payload,
-		title: "RAML Proxy " ++ flowVars."response.title",
-		detail: "RAML Proxy: '" ++ p('PROXY_API_NAME') ++ "' Version:" ++ p('PROXY_API_VERSION') ++ " " ++ flowVars."response.details",
+		title: "RAML Proxy: " ++ flowVars.errorMessage,
+		detail: "RAML Proxy: '" ++ p('PROXY_API_NAME') ++ "' Version:" ++ p('PROXY_API_VERSION') ++ " " ++ (flowVars.errorDescription default ''),
 		source:
 		{
 			pointer: inboundProperties['http.request.uri'],
@@ -32,12 +56,10 @@ http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/cor
 		meta:
 		{
 			dateTime: now as :string { format: "yyyy-MM-dd'T'HH:mm:ssZ" },
-			runtimeVersion: flowVars.runtimeVersion,
-			policies : flowVars.policies
+			runtimeVersion: flowVars.runtimeVersion
 		}
-	}
+	}]
 }]]></dw:set-payload>
-        </dw:transform-message>   
-    
+        </dw:transform-message>
     </sub-flow>
 </mule>

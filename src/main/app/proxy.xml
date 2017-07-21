@@ -49,7 +49,7 @@ http://www.springframework.org/schema/context http://www.springframework.org/sch
         <set-variable variableName="response.title" value="Heartbeat" doc:name="Set Response Title"/>
         <set-variable variableName="response.details" value="" doc:name="Set Response Details"/>
         <set-payload value="OK" doc:name="Set Status Code" mimeType="application/java"/>
-        <flow-ref name="transform-to-jsonapi-response_flow" doc:name="transform-to-jsonapi-response_flow"/>
+        <flow-ref name="transform-to-jsonapi-data_flow" doc:name="transform-to-jsonapi-data_flow"/>
     </flow>
 
     <flow name="proxy" >
@@ -100,9 +100,9 @@ However, if there is no such policy in place  and there is NO Correlation-ID in 
             <expression-component doc:name="StoreToArray"><![CDATA[#[flowVars['policies'].put( payload.getName(), org.mule.util.FileUtils.readFileToString(new java.io.File(payload)) ) ]]]></expression-component>
         </foreach>
         <set-variable variableName="response.title" value="Policies" doc:name="Set Response Title"/>
-        <set-variable variableName="response.details" value="#['Policies:' +  sizeOf(flowVars['policies'])]" doc:name="Set Response Details"/>
+        <set-variable variableName="response.details" value="#['Policies:' +  flowVars['policies'].size()]" doc:name="Set Response Details"/>
         <set-payload value="OK" doc:name="Set Status Code" mimeType="application/java"/>
-        <flow-ref name="transform-to-jsonapi-response_flow" doc:name="transform-to-jsonapi-response_flow"/>
+        <flow-ref name="transform-to-jsonapi-data_flow" doc:name="transform-to-jsonapi-data_flow"/>
         <exception-strategy ref="global-exception-strategy" doc:name="Reference Exception Strategy"/>
  	 </flow>
     <flow name="Api-Log-Passthrough-Flow">

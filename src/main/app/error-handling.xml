@@ -75,8 +75,10 @@ http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee
             <flow-ref name="global-not-acceptable-response-sub-flow" doc:name="Not Acceptable Response"/>
         </catch-exception-strategy>
         <catch-exception-strategy when="#[exception.causedBy(org.mule.module.apikit.exception.BadRequestException)]" doc:name="Caused By (org.mule.module.apikit.exception.BadRequestException)">
+            <set-variable variableName="errorDescription" value="#[exception !=null ? exception.message : &quot;&quot;]" doc:name="Set Exception Details"/>
             <flow-ref name="global-bad-request-response-sub-flow" doc:name="global-bad-request-response-sub-flow"/>
-        </catch-exception-strategy>
+		</catch-exception-strategy>
+
         
         
         <catch-exception-strategy doc:name="Default">
@@ -132,7 +134,7 @@ http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee
         
         <set-variable variableName="response.title" value="#[flowVars.errorMessage]" doc:name="Set Response Title"/>
         <set-variable variableName="response.details" value="#[flowVars.errorDescription != null?flowVars.errorDescription:&quot;---&quot;]" doc:name="Set Response Details"/>
-        <flow-ref name="transform-to-jsonapi-response_flow" doc:name="transform-to-jsonapi-response_flow"/>
+        <flow-ref name="transform-to-jsonapi-error_flow" doc:name="Transform to JSONAPI Error"/>
         <logger message="Error response payload: #[payload]" level="INFO" doc:name="Logger"/>
     </sub-flow>
     
