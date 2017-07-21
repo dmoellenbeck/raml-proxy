@@ -38,7 +38,7 @@ http://www.springframework.org/schema/context http://www.springframework.org/sch
       port="${implementation.port}"
       basePath="${implementation.logs.path}" doc:name="HTTP API-Log Request Configuration"/>
 
-    <proxy:raml-proxy-config name="proxy-config" raml="${raml.location}" disableValidations="true"/>
+    <proxy:raml-proxy-config name="proxy-config" raml="${raml.location}" disableValidations="false"/>
 
     <api-platform-gw:api apiName="${api.name}" version="${api.version}" apikitRef="proxy-config" flowRef="proxy" create="true" doc:name="API Autodiscovery">
     </api-platform-gw:api>
